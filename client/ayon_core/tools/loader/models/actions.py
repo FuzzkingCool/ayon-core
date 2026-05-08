@@ -633,10 +633,8 @@ class LoaderActionsModel:
         repre_entities = ayon_api.get_representations(
             project_name, version_ids=version_ids
         )
-        real_by_version = collections.defaultdict(list)
         for repre_entity in repre_entities:
             version_id = repre_entity["versionId"]
-            real_by_version[version_id].append(repre_entity)
             version_entity = version_entities_by_id[version_id]
             product_id = version_entity["productId"]
             product_entity = product_entities_by_id[product_id]
@@ -650,21 +648,6 @@ class LoaderActionsModel:
                 "version": version_entity,
                 "representation": repre_entity,
             }
-
-        synthetic_ids: set[str] = set()
-        for version_id in version_ids:
-            if real_by_version[version_id]:
-                continue
-            try:
-                pairs = list_version_reviewables(project_name, version_id)
-            except Exception:
-                pairs = []
-            for file_id, _label in pairs:
-                synthetic_ids.add(
-                    make_reviewable_repre_id(version_id, file_id)
-                )
-        syn_ctx = self._synthetic_repre_contexts(project_name, synthetic_ids)
-        repre_context_by_id.update(syn_ctx)
 
         return version_context_by_id, repre_context_by_id
 
@@ -895,17 +878,6 @@ class LoaderActionsModel:
             for version_id in missing_ids:
                 repres = repres_by_parent_id.get(version_id, [])
                 repre_ids = {repre["id"] for repre in repres}
-                if not repre_ids:
-                    try:
-                        pairs = list_version_reviewables(
-                            project_name, version_id
-                        )
-                    except Exception:
-                        pairs = []
-                    repre_ids = {
-                        make_reviewable_repre_id(version_id, fid)
-                        for fid, _ in pairs
-                    }
                 output[version_id] = set(repre_ids)
                 project_cache[version_id].update_data(repre_ids)
 
